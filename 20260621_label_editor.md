@@ -14,6 +14,10 @@
 ```
 label_editor/
 ├── main.py
+├── run_labeler.py
+├── verify_coco.py       # COCO 저장·로드 검증 스크립트
+├── requirements.txt
+├── .gitignore
 └── labeler/
     ├── __init__.py
     ├── canvas.py        # QGraphicsView 기반 캔버스
@@ -213,3 +217,67 @@ _dragging_cp: Tuple[int, int]          # (contour_idx, point_idx), -1,-1=없음
 - **컨트롤 포인트 드래그 후 mask diff**: TC89_L1 근사 특성상 이동 없이 commit해도 경계 픽셀 ~80px 차이 발생 (이전 approxPolyDP 대비 5배 개선됨)
 - **브러쉬 edit 모드**: edit 모드에서 B 누르면 선택된 annotation에 직접 paint/erase. Class 먼저 클릭(→ edit 해제) 후 B 누르면 새 annotation에 paint.
 - **경계선 overlay**: `boundary_rgba` / `_contour_overlay` 코드는 유지되나 현재 `_show_contour()`에서 호출 안 함 (사용자 요청으로 dot만 표시).
+
+---
+
+## COCO 데이터셋 검증 (`verify_coco.py`)
+
+### 검증 항목 (30/30 통과)
+
+| 항목 | 내용 |
+|---|---|
+| annotation 개수 | 3개 annotation → 3개 COCO entry 생성 |
+| category_id 분리 | person×2, car×1 각자 분리 저장 |
+| segmentation 형식 | flat float list, 짝수 좌표, 최소 6개 |
+| bbox 유효성 | 너비·높이 양수 |
+| area 유효성 | 0보다 큼 |
+| image_id 일치 | 모든 annotation의 image_id 동일 |
+| annotation 중복 없음 | 같은 category 내 두 annotation이 spatial하게 겹치지 않음 |
+| JSON 최상위 필드 | info / categories / images / annotations |
+| round-trip 복원 | 카테고리·이미지·annotation 수 완전 복원 |
+| mask 픽셀 수 복원 | 사각형 0% 오차, 원형 ~0.2% 오차 (허용치 5% 이내) |
+
+### 실행 방법
+
+```
+python verify_coco.py
+```
+
+---
+
+## Git / GitHub
+
+**저장소**: https://github.com/jjaamin/label_editor
+
+### 초기 설정 (최초 1회)
+
+```bash
+git config --global user.email "massx4@gmail.com"
+git config --global user.name "jjaamin"
+```
+
+### 코드 수정 후 업로드
+
+```bash
+git add .
+git commit -m "변경 내용 설명"
+git push
+```
+
+push 시 인증 프롬프트가 뜨면:
+- **Username**: `jjaamin`
+- **Password**: GitHub Personal Access Token (https://github.com/settings/tokens)
+
+### .gitignore 제외 항목
+
+```
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+```
