@@ -475,6 +475,44 @@ class MainWindow(QMainWindow):
 
     # ── image navigation ──────────────────────────────────────────────────────
 
+    def _load_json_for_image(self, img_path: str, w: int, h: int) -> Optional[MaskManager]:
+        """Load <stem>.json alongside img_path and return a MaskManager, or None."""
+        folder = os.path.dirname(img_path)
+        fname  = os.path.basename(img_path)
+        if not coco_io.has_labelme_annotations(folder, [fname]):
+            return None
+        try:
+            sub_proj, sub_mgrs = coco_io.load_labelme(folder, [fname])
+        except Exception:
+            return None
+        if not sub_proj.images or not sub_mgrs:
+            return None
+
+        # Map loaded cat_ids → existing (or newly added) cat_ids in self.project
+        name_to_cat = {c.name: c for c in self.project.categories}
+        cat_id_map: Dict[int, int] = {}
+        added = False
+        for sub_cat in sub_proj.categories:
+            if sub_cat.name in name_to_cat:
+                cat_id_map[sub_cat.id] = name_to_cat[sub_cat.name].id
+            else:
+                new_cat = self.project.add_category(sub_cat.name)
+                name_to_cat[new_cat.name] = new_cat
+                cat_id_map[sub_cat.id] = new_cat.id
+                added = True
+        if added:
+            self._refresh_class_list()
+            self.canvas.update_cat_colors(self._color_tuples())
+
+        sub_mgr = sub_mgrs.get(sub_proj.images[0].image_id)
+        if sub_mgr is None:
+            return None
+
+        mgr = MaskManager(w, h)
+        for ann in sub_mgr.annotations():
+            mgr.add_annotation(cat_id_map.get(ann.cat_id, ann.cat_id), ann.mask)
+        return mgr
+
     def _on_image_selected(self, row: int) -> None:
         if row < 0:
             return
@@ -490,7 +528,7 @@ class MainWindow(QMainWindow):
         # Get or create MaskManager for this image
         mgr = self._mask_managers.get(img_ann.image_id)
         if mgr is None:
-            mgr = MaskManager(w, h)
+            mgr = self._load_json_for_image(path, w, h) or MaskManager(w, h)
             self._mask_managers[img_ann.image_id] = mgr
 
         self.canvas.set_mask_manager(mgr, self._color_tuples())
