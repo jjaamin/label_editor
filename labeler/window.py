@@ -173,10 +173,6 @@ class MainWindow(QMainWindow):
     def _build_ui(self) -> None:
         mb = self.menuBar()
 
-        em = mb.addMenu("&Edit")
-        self._act_undo = QAction("&Undo", self, shortcut="Ctrl+Z")
-        em.addAction(self._act_undo)
-
         fm = mb.addMenu("&File")
         self._act_open_folder = QAction("Open &Folder…", self, shortcut="Ctrl+O")
         self._act_open_file   = QAction("Open &Image…", self)
@@ -195,6 +191,10 @@ class MainWindow(QMainWindow):
         self._act_fit      = QAction("&Fit Image", self, shortcut="F")
         for a in (self._act_zoom_in, self._act_zoom_out, self._act_fit):
             vm.addAction(a)
+
+        em = mb.addMenu("&Edit")
+        self._act_undo = QAction("&Undo", self, shortcut="Ctrl+Z")
+        em.addAction(self._act_undo)
 
         # ── Left Vertical Toolbar ─────────────────────────────────────────────
         tb = QToolBar("Tools", self)
