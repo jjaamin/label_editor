@@ -9,10 +9,7 @@ import numpy as np
 from .models import Project, ImageAnnotation, PALETTE
 from .mask_manager import MaskManager
 
-try:
-    from labelme import __version__ as LABELME_VERSION
-except ImportError:
-    LABELME_VERSION = "6.3.1"
+LABELME_VERSION = "1.0.1"
 _DESCRIPTION = "label editor - jamin"
 
 
