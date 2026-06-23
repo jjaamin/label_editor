@@ -135,29 +135,14 @@ def _polygon_icon(size: int = 21) -> QIcon:
     return QIcon(pm)
 
 
-def _brush_icon(size: int = 21) -> QIcon:
+def _text_icon(symbol: str, size: int = 21) -> QIcon:
     pm = QPixmap(size, size)
     pm.fill(Qt.GlobalColor.transparent)
     p = QPainter(pm)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    color = QColor("#404040")
-    s = float(size)
-
-    pen = QPen(color, max(1.5, s * 0.10))
-    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-    p.setPen(pen)
-    p.drawLine(int(s*0.72), int(s*0.08), int(s*0.48), int(s*0.50))
-
-    pen2 = QPen(color, max(1.0, s * 0.07))
-    pen2.setCapStyle(Qt.PenCapStyle.RoundCap)
-    p.setPen(pen2)
-    p.drawLine(int(s*0.36), int(s*0.54), int(s*0.60), int(s*0.42))
-
-    p.setPen(Qt.PenStyle.NoPen)
-    p.setBrush(QBrush(color))
-    r = max(3, int(s * 0.17))
-    p.drawEllipse(int(s*0.17), int(s*0.67), r * 2, r * 2)
-
+    f = p.font()
+    f.setPixelSize(int(size * 0.82))
+    p.setFont(f)
+    p.drawText(pm.rect(), Qt.AlignmentFlag.AlignCenter, symbol)
     p.end()
     return QIcon(pm)
 
@@ -189,26 +174,6 @@ def _magic_wand_icon(size: int = 21) -> QIcon:
     p.end()
     return QIcon(pm)
 
-
-def _hand_icon(size: int = 21) -> QIcon:
-    pm = QPixmap(size, size)
-    pm.fill(Qt.GlobalColor.transparent)
-    p = QPainter(pm)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    color = QColor("#404040")
-    s = float(size)
-
-    p.setPen(QPen(color, max(1.0, s * 0.07)))
-    p.setBrush(QBrush(QColor("#d8e8f8")))
-    fw = max(2, int(s * 0.14))
-    for fx, fy, fh in [(0.12, 0.10, 0.38), (0.28, 0.06, 0.42),
-                        (0.44, 0.06, 0.42), (0.60, 0.10, 0.38)]:
-        p.drawRoundedRect(int(s*fx), int(s*fy), fw, int(s*fh), 2, 2)
-    p.drawRoundedRect(int(s*0.10), int(s*0.44), int(s*0.64), int(s*0.44), 4, 4)
-    p.drawRoundedRect(int(s*0.74), int(s*0.32), fw, int(s*0.28), 2, 2)
-
-    p.end()
-    return QIcon(pm)
 
 
 class MainWindow(QMainWindow):
@@ -310,12 +275,12 @@ class MainWindow(QMainWindow):
 
         self._act_draw.setIcon(_polygon_icon())
         self._act_draw.setToolTip("Draw Polygon  (D)")
-        self._act_brush.setIcon(_brush_icon())
+        self._act_brush.setIcon(_text_icon("🖌", size=21))
         self._act_brush.setToolTip("Brush  (B)  —  LMB: paint  /  RMB: erase")
         self._act_magic.setIcon(_magic_wand_icon())
         self._act_magic.setToolTip(
             "AI Magic Wand  (M)  —  LMB: include point  /  RMB: exclude point  /  Enter: commit")
-        self._act_hand.setIcon(_hand_icon())
+        self._act_hand.setIcon(_text_icon("🖐", size=21))
         self._act_hand.setToolTip("Pan  (H)")
 
         self._act_zoom_in.setIcon(_zoom_icon(plus=True))
