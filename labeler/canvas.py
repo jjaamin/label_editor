@@ -296,7 +296,7 @@ class ImageCanvas(QGraphicsView):
         self.mode_changed.emit(mode.name.lower())
 
     def set_brush_size(self, size: int) -> None:
-        self._brush_size = max(1, min(50, size))
+        self._brush_size = max(1, min(88, size))
 
     def fit_view(self) -> None:
         if self._pixmap_item:
@@ -471,12 +471,6 @@ class ImageCanvas(QGraphicsView):
                     self.setCursor(Qt.CursorShape.OpenHandCursor)
         elif key == Qt.Key.Key_F:
             self.fit_view()
-        elif key == Qt.Key.Key_BracketLeft:
-            self.set_brush_size(self._brush_size - 1)
-            self.brush_size_changed.emit(self._brush_size)
-        elif key == Qt.Key.Key_BracketRight:
-            self.set_brush_size(self._brush_size + 1)
-            self.brush_size_changed.emit(self._brush_size)
         super().keyPressEvent(event)
 
     def keyReleaseEvent(self, event) -> None:

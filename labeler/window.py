@@ -290,7 +290,7 @@ class MainWindow(QMainWindow):
         brush_lbl.setStyleSheet("font-size: 13px;")
         sh.addWidget(brush_lbl)
         self._brush_slider = QSlider(Qt.Orientation.Horizontal)
-        self._brush_slider.setRange(1, 50)
+        self._brush_slider.setRange(1, 88)
         self._brush_slider.setValue(20)
         self._brush_slider.setFixedHeight(24)
         self._brush_slider.setToolTip("Brush / Eraser size  ( [ / ] to adjust )")
@@ -341,6 +341,12 @@ class MainWindow(QMainWindow):
         splitter.addWidget(right)
         splitter.setSizes([1050, 230])
 
+        # Window-level brush size shortcuts (work regardless of focus)
+        self._act_brush_dec = QAction(self, shortcut="[")
+        self._act_brush_inc = QAction(self, shortcut="]")
+        self.addAction(self._act_brush_dec)
+        self.addAction(self._act_brush_inc)
+
         # Status bar
         sb = QStatusBar(self)
         self.setStatusBar(sb)
@@ -370,6 +376,10 @@ class MainWindow(QMainWindow):
 
         self._brush_slider.valueChanged.connect(self._on_slider_changed)
         self.canvas.brush_size_changed.connect(self._sync_slider)
+        self._act_brush_dec.triggered.connect(
+            lambda: self._brush_slider.setValue(self._brush_slider.value() - 1))
+        self._act_brush_inc.triggered.connect(
+            lambda: self._brush_slider.setValue(self._brush_slider.value() + 1))
 
         self._btn_add_cls.clicked.connect(self._add_class)
         self._btn_rem_cls.clicked.connect(self._remove_class)
