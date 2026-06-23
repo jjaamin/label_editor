@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 from PyQt6.QtCore import Qt, QSize, QSettings, QEvent
 from PyQt6.QtGui import QAction, QActionGroup, QColor, QFont, QIcon, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import (
-    QComboBox, QFileDialog, QGroupBox, QHBoxLayout, QInputDialog,
+    QApplication, QComboBox, QFileDialog, QGroupBox, QHBoxLayout, QInputDialog,
     QLabel, QListWidget, QListWidgetItem, QMainWindow,
     QMessageBox, QPushButton, QSlider, QSplitter, QStatusBar,
     QToolBar, QVBoxLayout, QWidget,
@@ -16,6 +16,7 @@ from .mask_manager import MaskManager
 from .models import Project
 from . import coco_io
 from .gamma_dialog import GammaCurveDialog, compute_lut
+from . import sam_worker
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp"}
 
@@ -162,6 +163,8 @@ class MainWindow(QMainWindow):
         y2 = int(self._settings.value("gammaY2", 255))
         self._gamma_ctrl = [(0, y0), (128, y1), (255, y2)]
         self._gamma_dialog: Optional[GammaCurveDialog] = None
+        self._sam_predictor: Optional[object] = None
+        self._sam_img_path: str = ""
         self.current_img_ann = None
         self._modified = False
 
@@ -238,12 +241,16 @@ class MainWindow(QMainWindow):
         # Tool group (exclusive): Draw / Brush / Pan
         self._act_draw  = QAction(self, shortcut="D", checkable=True)
         self._act_brush = QAction(self, shortcut="B", checkable=True)
+        self._act_magic = QAction(self, shortcut="M", checkable=True)
         self._act_hand  = QAction(self, shortcut="H", checkable=True)
 
         self._act_draw.setIcon(_polygon_icon())
         self._act_draw.setToolTip("Draw Polygon  (D)")
         self._act_brush.setIcon(_emoji_icon("🖌"))
         self._act_brush.setToolTip("Brush  (B)  —  LMB: paint  /  RMB: erase")
+        self._act_magic.setIcon(_emoji_icon("🪄"))
+        self._act_magic.setToolTip(
+            "AI Magic Wand  (M)  —  LMB: include point  /  RMB: exclude point  /  Enter: commit")
         self._act_hand.setIcon(_emoji_icon("🖐"))
         self._act_hand.setToolTip("Pan  (H)")
 
@@ -256,13 +263,14 @@ class MainWindow(QMainWindow):
 
         tool_group = QActionGroup(self)
         tool_group.setExclusive(True)
-        for a in (self._act_draw, self._act_brush):
+        for a in (self._act_draw, self._act_brush, self._act_magic):
             tool_group.addAction(a)
             tb.addAction(a)
 
         tb.addSeparator()
         tb.addAction(self._act_hand)
         tool_group.addAction(self._act_hand)
+
         tb.addAction(self._act_zoom_in)
         tb.addAction(self._act_zoom_out)
         tb.addAction(self._act_fit)
@@ -300,6 +308,26 @@ class MainWindow(QMainWindow):
         self._brush_size_lbl.setFixedWidth(30)
         sh.addWidget(self._brush_size_lbl)
         rv.addWidget(size_widget)
+
+        # Mask index row (AI Magic Wand)
+        mask_widget = QWidget()
+        mh = QHBoxLayout(mask_widget)
+        mh.setContentsMargins(4, 2, 4, 2)
+        mask_lbl = QLabel("Mask:")
+        mask_lbl.setStyleSheet("font-size: 13px;")
+        mh.addWidget(mask_lbl)
+        self._mask_slider = QSlider(Qt.Orientation.Horizontal)
+        self._mask_slider.setRange(0, 2)
+        self._mask_slider.setValue(0)
+        self._mask_slider.setFixedHeight(24)
+        self._mask_slider.setEnabled(False)
+        self._mask_slider.setToolTip("Select SAM mask candidate  (1 = smallest, 3 = largest)")
+        mh.addWidget(self._mask_slider)
+        self._mask_idx_lbl = QLabel("1/3")
+        self._mask_idx_lbl.setStyleSheet("font-size: 13px;")
+        self._mask_idx_lbl.setFixedWidth(30)
+        mh.addWidget(self._mask_idx_lbl)
+        rv.addWidget(mask_widget)
 
         # Classes group
         cg = QGroupBox("Classes")
@@ -367,6 +395,7 @@ class MainWindow(QMainWindow):
         self._act_hand.toggled.connect(self._on_tool_toggled)
         self._act_draw.toggled.connect(self._on_tool_toggled)
         self._act_brush.toggled.connect(self._on_tool_toggled)
+        self._act_magic.toggled.connect(self._on_tool_toggled)
         self._act_zoom_in.triggered.connect(lambda: self.canvas.scale(1.2, 1.2))
         self._act_zoom_out.triggered.connect(lambda: self.canvas.scale(1 / 1.2, 1 / 1.2))
         self._act_fit.triggered.connect(self.canvas.fit_view)
@@ -380,6 +409,7 @@ class MainWindow(QMainWindow):
             lambda: self._brush_slider.setValue(self._brush_slider.value() - 1))
         self._act_brush_inc.triggered.connect(
             lambda: self._brush_slider.setValue(self._brush_slider.value() + 1))
+        self._mask_slider.valueChanged.connect(self._on_mask_slider_changed)
 
         self._btn_add_cls.clicked.connect(self._add_class)
         self._btn_rem_cls.clicked.connect(self._remove_class)
@@ -394,6 +424,7 @@ class MainWindow(QMainWindow):
         self._img_list.currentRowChanged.connect(self._on_image_selected)
 
         self.canvas.annotation_committed.connect(self._on_annotation_committed)
+        self.canvas.magic_requested.connect(self._on_magic_requested)
         self.canvas.undo_record.connect(self._push_undo)
         self.canvas.edit_changed.connect(self._mark_modified)
         self.canvas.edit_cleared.connect(self._on_edit_cleared)
@@ -548,6 +579,7 @@ class MainWindow(QMainWindow):
         if row < 0:
             return
         self._undo_stack.clear()
+        self._sam_img_path = ""  # force re-encode on next magic click
 
         name = self._img_list.item(row).text()
         path = os.path.join(self.image_dir, name)
@@ -720,10 +752,13 @@ class MainWindow(QMainWindow):
         elif self._act_brush.isChecked():
             self._update_active_class()
             self.canvas.set_mode(Mode.BRUSH)
+        elif self._act_magic.isChecked():
+            self._update_active_class()
+            self.canvas.set_mode(Mode.MAGIC)
         self.canvas.setFocus()
 
     def _uncheck_all_tools(self) -> None:
-        for a in (self._act_hand, self._act_draw, self._act_brush):
+        for a in (self._act_hand, self._act_draw, self._act_brush, self._act_magic):
             a.blockSignals(True)
             a.setChecked(False)
             a.blockSignals(False)
@@ -908,10 +943,93 @@ class MainWindow(QMainWindow):
             "pan":   "Mode: Pan  (drag to move image)",
             "draw":  "Mode: Draw  (double-click or snap to close)",
             "brush": "Mode: Brush  (LMB: paint  /  RMB: erase)",
+            "magic": "Mode: AI Magic Wand  (LMB: include  /  RMB: exclude  /  Enter: commit  /  Esc: reset)",
         }
         self._lbl_mode.setText(labels.get(mode_str, f"Mode: {mode_str}"))
         if mode_str == "idle":
             self._uncheck_all_tools()
+
+    # ── AI magic wand (EdgeSAM) ───────────────────────────────────────────────
+
+    def _on_mask_slider_changed(self, idx: int) -> None:
+        self._mask_idx_lbl.setText(f"{idx + 1}/3")
+        self.canvas.set_magic_mask_idx(idx)
+
+    def _on_magic_requested(self, points: object, labels: object) -> None:
+        if not self._ensure_sam_loaded():
+            return
+        current_item = self._img_list.currentItem()
+        if current_item is None:
+            return
+        img_path = os.path.join(self.image_dir, current_item.text())
+        if img_path != self._sam_img_path:
+            if not self._sam_encode_image(img_path):
+                return
+        self._lbl_status.setText("AI: predicting…")
+        QApplication.processEvents()
+        try:
+            masks, scores = self._sam_predictor.predict(points, labels)  # type: ignore[union-attr]
+            self.canvas.set_magic_preview(masks, self._mask_slider.value())
+            self._mask_slider.setEnabled(True)
+            score_str = "  ".join(f"{s:.2f}" for s in scores)
+            self._lbl_status.setText(
+                f"AI: {len(points)} point(s)  |  scores: [{score_str}]")
+        except Exception as e:
+            self._lbl_status.setText(f"SAM predict error: {e}")
+
+    def _ensure_sam_loaded(self) -> bool:
+        if self._sam_predictor is not None:
+            return True
+        if not sam_worker.is_installed():
+            QMessageBox.warning(
+                self, "EdgeSAM not installed",
+                "EdgeSAM is not installed.\n\n"
+                "Run:  pip install git+https://github.com/chongzhou96/EdgeSAM.git",
+            )
+            return False
+        wp = sam_worker.WEIGHTS_PATH
+        if not os.path.exists(wp):
+            QMessageBox.warning(
+                self, "Weights not found",
+                f"EdgeSAM weights not found.\n\n"
+                f"Run:  python download_weights.py\n\n"
+                f"Expected: {wp}",
+            )
+            return False
+        self._lbl_status.setText("Loading EdgeSAM model…")
+        QApplication.processEvents()
+        self.setCursor(Qt.CursorShape.WaitCursor)
+        try:
+            import torch
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            self._sam_predictor = sam_worker.EdgeSAMPredictor(wp, device=device)
+            self._lbl_status.setText(f"EdgeSAM loaded  ({device})")
+        except Exception as e:
+            QMessageBox.critical(self, "Load error", str(e))
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+            return False
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        return True
+
+    def _sam_encode_image(self, img_path: str) -> bool:
+        import cv2
+        import numpy as np
+        self._lbl_status.setText("AI: encoding image…")
+        QApplication.processEvents()
+        self.setCursor(Qt.CursorShape.WaitCursor)
+        try:
+            bgr = cv2.imread(img_path)
+            if bgr is None:
+                raise ValueError(f"Cannot read: {img_path}")
+            rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+            self._sam_predictor.set_image(rgb)  # type: ignore[union-attr]
+            self._sam_img_path = img_path
+        except Exception as e:
+            self._lbl_status.setText(f"SAM encode error: {e}")
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+            return False
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        return True
 
     # ── faint / gamma ─────────────────────────────────────────────────────────
 

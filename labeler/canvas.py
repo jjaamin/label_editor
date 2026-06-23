@@ -24,6 +24,7 @@ class Mode(Enum):
     PAN   = auto()
     DRAW  = auto()
     BRUSH = auto()
+    MAGIC = auto()
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -91,6 +92,7 @@ class ImageCanvas(QGraphicsView):
     edit_changed         = pyqtSignal()
     edit_cleared         = pyqtSignal()
     undo_record          = pyqtSignal(object)  # dict pushed to window undo stack
+    magic_requested      = pyqtSignal(object, object)  # (points, labels) → window runs SAM
 
     def __init__(self, parent=None) -> None:
         scene = QGraphicsScene()
@@ -134,6 +136,13 @@ class ImageCanvas(QGraphicsView):
         self._draft_path: Optional[QGraphicsPathItem] = None
         self._draft_line: Optional[QGraphicsLineItem] = None
         self._draft_dot: Optional[QGraphicsEllipseItem] = None
+
+        # magic wand state
+        self._magic_pts: List[Tuple[float, float]] = []
+        self._magic_lbls: List[int] = []
+        self._magic_masks: Optional[np.ndarray] = None   # (3, H, W) bool
+        self._magic_mask_idx: int = 0
+        self._magic_dot_items: List[QGraphicsEllipseItem] = []
 
         # gamma / faint-mode
         self._original_pixmap: Optional[QPixmap] = None
@@ -285,6 +294,8 @@ class ImageCanvas(QGraphicsView):
             return
         if self._mode == Mode.DRAW:
             self._cancel_draw()
+        if self._mode == Mode.MAGIC and mode != Mode.MAGIC:
+            self.clear_magic(keep_pending=False)
         self._mode = mode
         self._painting = False
         if mode == Mode.PAN:
@@ -330,6 +341,14 @@ class ImageCanvas(QGraphicsView):
                 self._draw_click(self.mapToScene(event.position().toPoint()))
             elif event.button() == Qt.MouseButton.RightButton:
                 self._cancel_draw()
+            return
+
+        if self._mode == Mode.MAGIC:
+            sp = self.mapToScene(event.position().toPoint())
+            if event.button() == Qt.MouseButton.LeftButton:
+                self._magic_click(sp, 1)
+            elif event.button() == Qt.MouseButton.RightButton:
+                self._magic_click(sp, 0)
             return
 
         # Control-point drag takes priority over brushing
@@ -448,9 +467,15 @@ class ImageCanvas(QGraphicsView):
                 return
             if self._mode == Mode.DRAW:
                 self._cancel_draw()
+            if self._mode == Mode.MAGIC:
+                self.clear_magic(keep_pending=False)
             self._discard_pending()
             self.set_mode(Mode.IDLE)
         elif key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            if self._mode == Mode.MAGIC:
+                self._commit_pending()
+                self.clear_magic(keep_pending=True)
+                return
             if self._edit_ann_id >= 0:
                 # In draw mode with draft points → new polygon, exit edit first
                 if self._mode == Mode.DRAW and len(self._draft_pts) >= 3:
@@ -734,7 +759,7 @@ class ImageCanvas(QGraphicsView):
     def _apply_cursor(self) -> None:
         if self._mode == Mode.BRUSH:
             self.setCursor(Qt.CursorShape.BlankCursor)
-        elif self._mode == Mode.DRAW:
+        elif self._mode in (Mode.DRAW, Mode.MAGIC):
             self.setCursor(Qt.CursorShape.CrossCursor)
             if self._brush_ring:
                 self._brush_ring.hide()
@@ -746,6 +771,61 @@ class ImageCanvas(QGraphicsView):
             self.setCursor(Qt.CursorShape.ArrowCursor)
             if self._brush_ring:
                 self._brush_ring.hide()
+
+    # ── magic wand ────────────────────────────────────────────────────────────
+
+    def _magic_click(self, sp: QPointF, label: int) -> None:
+        if self._mask_manager is None:
+            return
+        x = max(0, min(int(round(sp.x())), self._mask_manager.width  - 1))
+        y = max(0, min(int(round(sp.y())), self._mask_manager.height - 1))
+        self._magic_pts.append((x, y))
+        self._magic_lbls.append(label)
+
+        color = QColor("#00e64d") if label == 1 else QColor("#ff3333")
+        dot = QGraphicsEllipseItem(-6, -6, 12, 12)
+        dot.setPen(QPen(color, 2))
+        dot.setBrush(QBrush(color))
+        dot.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
+        dot.setPos(x + 0.5, y + 0.5)
+        dot.setZValue(50)
+        self.scene().addItem(dot)
+        self._magic_dot_items.append(dot)
+
+        self.magic_requested.emit(list(self._magic_pts), list(self._magic_lbls))
+
+    def set_magic_preview(self, masks: np.ndarray, mask_idx: int) -> None:
+        """Called by window with SAM output. masks: (3,H,W) bool-like."""
+        self._magic_masks = masks
+        self._magic_mask_idx = max(0, min(mask_idx, len(masks) - 1))
+        self._update_magic_preview()
+
+    def set_magic_mask_idx(self, idx: int) -> None:
+        if self._magic_masks is None:
+            return
+        self._magic_mask_idx = max(0, min(idx, len(self._magic_masks) - 1))
+        self._update_magic_preview()
+
+    def _update_magic_preview(self) -> None:
+        if self._magic_masks is None or self._pending_mask is None:
+            return
+        mask = self._magic_masks[self._magic_mask_idx]
+        self._pending_mask[:] = 0
+        self._pending_mask[mask > 0] = 255
+        self._refresh_overlay_full()
+
+    def clear_magic(self, keep_pending: bool = False) -> None:
+        self._magic_pts = []
+        self._magic_lbls = []
+        self._magic_masks = None
+        for dot in self._magic_dot_items:
+            self.scene().removeItem(dot)
+        self._magic_dot_items = []
+        if not keep_pending and self._pending_mask is not None and self._pending_mask.any():
+            self._pending_mask[:] = 0
+            self._refresh_overlay_full()
+
+    # ── helpers ───────────────────────────────────────────────────────────────
 
     def _view_dist(self, a: QPointF, b: QPointF) -> float:
         va = self.mapFromScene(a)
