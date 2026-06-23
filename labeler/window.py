@@ -152,24 +152,40 @@ def _magic_wand_icon(size: int = 21) -> QIcon:
     pm.fill(Qt.GlobalColor.transparent)
     p = QPainter(pm)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    color = QColor("#404040")
     s = float(size)
 
-    pen = QPen(color, max(1.5, s * 0.10))
+    # Purple wand stick
+    pen = QPen(QColor("#7C3AED"), max(2.0, s * 0.11))
     pen.setCapStyle(Qt.PenCapStyle.RoundCap)
     p.setPen(pen)
-    p.drawLine(int(s*0.22), int(s*0.82), int(s*0.72), int(s*0.28))
+    p.drawLine(int(s*0.14), int(s*0.88), int(s*0.60), int(s*0.38))
 
-    pen2 = QPen(color, max(1.0, s * 0.08))
-    pen2.setCapStyle(Qt.PenCapStyle.RoundCap)
-    p.setPen(pen2)
-    cx, cy = s * 0.78, s * 0.22
-    arm = s * 0.15
-    arm2 = int(arm * 0.65)
-    p.drawLine(int(cx - arm), int(cy), int(cx + arm), int(cy))
-    p.drawLine(int(cx), int(cy - arm), int(cx), int(cy + arm))
-    p.drawLine(int(cx - arm2), int(cy - arm2), int(cx + arm2), int(cy + arm2))
-    p.drawLine(int(cx - arm2), int(cy + arm2), int(cx + arm2), int(cy - arm2))
+    # Colorful sparkle rays from tip
+    cx, cy = s * 0.68, s * 0.30
+    arm  = s * 0.18
+    arm2 = arm * 0.68
+    rays = [
+        ("#FF4D6D",  0,     -arm ),   # up    — pink
+        ("#FFD700",  arm,    0   ),   # right — yellow
+        ("#00D4AA",  0,      arm ),   # down  — teal
+        ("#60A5FA", -arm,    0   ),   # left  — blue
+        ("#F472B6", -arm2,  -arm2),   # up-left  — light pink
+        ("#A3E635",  arm2,   arm2),   # down-right — lime
+        ("#FB923C",  arm2,  -arm2),   # up-right — orange
+        ("#C084FC", -arm2,   arm2),   # down-left — violet
+    ]
+    for color, dx, dy in rays:
+        rpen = QPen(QColor(color), max(1.5, s * 0.09))
+        rpen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        p.setPen(rpen)
+        p.drawLine(int(cx + dx*0.30), int(cy + dy*0.30),
+                   int(cx + dx),      int(cy + dy))
+
+    # Gold star center
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("#FFD700")))
+    sr = max(2, int(s * 0.13))
+    p.drawEllipse(int(cx - sr), int(cy - sr), sr * 2, sr * 2)
 
     p.end()
     return QIcon(pm)
