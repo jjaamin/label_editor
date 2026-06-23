@@ -982,27 +982,28 @@ class MainWindow(QMainWindow):
             return True
         if not sam_worker.is_installed():
             QMessageBox.warning(
-                self, "EdgeSAM not installed",
-                "EdgeSAM is not installed.\n\n"
-                "Run:  pip install git+https://github.com/chongzhou96/EdgeSAM.git",
+                self, "onnxruntime not installed",
+                "onnxruntime is required for AI Magic Wand.\n\n"
+                "Run:  pip install onnxruntime-gpu",
             )
             return False
-        wp = sam_worker.WEIGHTS_PATH
-        if not os.path.exists(wp):
+        enc = sam_worker.ENCODER_PATH
+        dec = sam_worker.DECODER_PATH
+        missing = [p for p in (enc, dec) if not os.path.exists(p)]
+        if missing:
             QMessageBox.warning(
                 self, "Weights not found",
-                f"EdgeSAM weights not found.\n\n"
-                f"Run:  python download_weights.py\n\n"
-                f"Expected: {wp}",
+                "EdgeSAM ONNX weights not found.\n\n"
+                "Run:  python download_weights.py\n\n"
+                "Expected:\n" + "\n".join(f"  {p}" for p in missing),
             )
             return False
         self._lbl_status.setText("Loading EdgeSAM model…")
         QApplication.processEvents()
         self.setCursor(Qt.CursorShape.WaitCursor)
         try:
-            import torch
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            self._sam_predictor = sam_worker.EdgeSAMPredictor(wp, device=device)
+            self._sam_predictor = sam_worker.EdgeSAMPredictor(enc, dec)
+            device = self._sam_predictor.device  # type: ignore[union-attr]
             self._lbl_status.setText(f"EdgeSAM loaded  ({device})")
         except Exception as e:
             QMessageBox.critical(self, "Load error", str(e))
