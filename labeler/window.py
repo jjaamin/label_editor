@@ -450,10 +450,8 @@ class MainWindow(QMainWindow):
 
         self._brush_slider.valueChanged.connect(self._on_slider_changed)
         self.canvas.brush_size_changed.connect(self._sync_slider)
-        self._act_brush_dec.triggered.connect(
-            lambda: self._brush_slider.setValue(self._brush_slider.value() - 1))
-        self._act_brush_inc.triggered.connect(
-            lambda: self._brush_slider.setValue(self._brush_slider.value() + 1))
+        self._act_brush_dec.triggered.connect(lambda: self._adjust_size(-1))
+        self._act_brush_inc.triggered.connect(lambda: self._adjust_size(+1))
         self._mask_slider.valueChanged.connect(self._on_mask_slider_changed)
 
         self._btn_add_cls.clicked.connect(self._add_class)
@@ -809,6 +807,12 @@ class MainWindow(QMainWindow):
             a.blockSignals(False)
 
     # ── brush size ────────────────────────────────────────────────────────────
+
+    def _adjust_size(self, delta: int) -> None:
+        if self.canvas.current_mode == "magic":
+            self._mask_slider.setValue(self._mask_slider.value() + delta)
+        else:
+            self._brush_slider.setValue(self._brush_slider.value() + delta)
 
     def _on_slider_changed(self, value: int) -> None:
         self._brush_size_lbl.setText(str(value))
