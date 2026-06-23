@@ -199,9 +199,9 @@ class MainWindow(QMainWindow):
         for a in (self._act_zoom_in, self._act_zoom_out, self._act_fit):
             vm.addAction(a)
         vm.addSeparator()
-        self._act_faint = QAction("&Faint Labels", self, shortcut="V", checkable=True)
+        self._act_faint = QAction("Faint Label &View", self, shortcut="V", checkable=True)
         self._act_gamma = QAction("Apply &Gamma",  self, shortcut="G", checkable=True)
-        self._act_gamma_curve = QAction("Gamma Cur&ve…", self)
+        self._act_gamma_curve = QAction("Gamma Curve Setting", self)
         vm.addAction(self._act_faint)
         vm.addAction(self._act_gamma)
         vm.addAction(self._act_gamma_curve)
