@@ -365,8 +365,9 @@ class ImageCanvas(QGraphicsView):
                 self._magic_click(sp, 0)
             return
 
-        # Control-point drag takes priority over brushing
-        if event.button() == Qt.MouseButton.LeftButton and self._cp_contours:
+        # Control-point drag (disabled in Brush mode — use brush to edit instead)
+        if (event.button() == Qt.MouseButton.LeftButton
+                and self._cp_contours and self._mode != Mode.BRUSH):
             sp = self.mapToScene(event.position().toPoint())
             ci, pi = self._find_control_point(sp)
             if ci >= 0:
