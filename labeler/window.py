@@ -135,6 +135,51 @@ def _polygon_icon(size: int = 21) -> QIcon:
     return QIcon(pm)
 
 
+def _json_doc_icon(size: int = 14) -> QIcon:
+    from PyQt6.QtGui import QPainterPath as _Path
+    pm = QPixmap(size, size)
+    pm.fill(Qt.GlobalColor.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    s = float(size)
+
+    dw, dh = s * 0.62, s * 0.80
+    dx = (s - dw) / 2
+    dy = (s - dh) / 2
+    fold = dw * 0.30
+
+    body = _Path()
+    body.moveTo(dx, dy)
+    body.lineTo(dx + dw - fold, dy)
+    body.lineTo(dx + dw, dy + fold)
+    body.lineTo(dx + dw, dy + dh)
+    body.lineTo(dx, dy + dh)
+    body.closeSubpath()
+    p.setPen(QPen(QColor("#1D4ED8"), max(1.0, s * 0.07)))
+    p.setBrush(QBrush(QColor("#BFDBFE")))
+    p.drawPath(body)
+
+    corner = _Path()
+    corner.moveTo(dx + dw - fold, dy)
+    corner.lineTo(dx + dw - fold, dy + fold)
+    corner.lineTo(dx + dw, dy + fold)
+    corner.closeSubpath()
+    p.setPen(QPen(QColor("#1D4ED8"), max(1.0, s * 0.07)))
+    p.setBrush(QBrush(QColor("#93C5FD")))
+    p.drawPath(corner)
+
+    lpen = QPen(QColor("#1E40AF"), max(1.0, s * 0.09))
+    lpen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    p.setPen(lpen)
+    lx1, lx2 = dx + dw * 0.18, dx + dw * 0.80
+    for fy in (0.52, 0.65, 0.78):
+        ly = dy + dh * fy
+        p.drawLine(int(lx1), int(ly), int(lx2), int(ly))
+
+    p.end()
+    return QIcon(pm)
+
+
 def _text_icon(symbol: str, size: int = 21) -> QIcon:
     pm = QPixmap(size, size)
     pm.fill(Qt.GlobalColor.transparent)
@@ -508,6 +553,7 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
 
+        self._refresh_image_icons()
         if files:
             self._img_list.setCurrentRow(0)
         self._update_title()
@@ -552,6 +598,7 @@ class MainWindow(QMainWindow):
             self._modified = False
             self._update_title()
             self._lbl_status.setText(f"Saved → {os.path.basename(directory)}/")
+            self._refresh_image_icons()
         except Exception as e:
             QMessageBox.critical(self, "Save Error", str(e))
 
@@ -579,6 +626,7 @@ class MainWindow(QMainWindow):
         if row >= 0:
             self._on_image_selected(row)
         self._lbl_status.setText(f"Loaded from: {os.path.basename(directory)}/")
+        self._refresh_image_icons()
 
     def _load_json_for_image(self, filename: str, w: int, h: int) -> Optional[MaskManager]:
         """Try to load JSON for a single image; merge categories into current project."""
@@ -1172,6 +1220,20 @@ class MainWindow(QMainWindow):
         self._mark_modified()
 
     # ── helpers ───────────────────────────────────────────────────────────────
+
+    def _refresh_image_icons(self) -> None:
+        json_dir = self.save_path or self.image_dir
+        if not json_dir:
+            return
+        has_icon = _json_doc_icon()
+        no_icon = QIcon()
+        for i in range(self._img_list.count()):
+            item = self._img_list.item(i)
+            if item is None:
+                continue
+            stem = os.path.splitext(item.text())[0]
+            exists = os.path.isfile(os.path.join(json_dir, stem + ".json"))
+            item.setIcon(has_icon if exists else no_icon)
 
     def _color_tuples(self) -> dict:
         return {cat.id: _hex_to_rgb(cat.color) for cat in self.project.categories}
