@@ -933,6 +933,7 @@ class MainWindow(QMainWindow):
     def _on_edit_cleared(self) -> None:
         self._label_list.blockSignals(True)
         self._label_list.clearSelection()
+        self._label_list.setCurrentRow(-1)
         self._label_list.blockSignals(False)
         self._clear_label_bold()
         self._update_label_class_combo()

@@ -305,6 +305,12 @@ class ImageCanvas(QGraphicsView):
         else:
             self.setDragMode(QGraphicsView.DragMode.NoDrag)
         self._apply_cursor()
+        # Show/hide control point dots depending on mode (hidden while brushing)
+        if self._edit_ann_id >= 0 and self._cp_dot_items:
+            show_dots = (mode != Mode.BRUSH)
+            for dots in self._cp_dot_items:
+                for dot in dots:
+                    dot.setVisible(show_dots)
         self.mode_changed.emit(mode.name.lower())
 
     def set_brush_size(self, size: int) -> None:
@@ -551,6 +557,7 @@ class ImageCanvas(QGraphicsView):
 
             # Control point dots at pixel centres (cp_pts already have +0.5)
             dots: List[QGraphicsEllipseItem] = []
+            show_dots = (self._mode != Mode.BRUSH)
             for x, y in cp_pts:
                 dot = QGraphicsEllipseItem(-CP_R, -CP_R, CP_R * 2, CP_R * 2)
                 dot.setPen(dot_pen)
@@ -558,6 +565,7 @@ class ImageCanvas(QGraphicsView):
                 dot.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
                 dot.setPos(x, y)
                 dot.setZValue(35)
+                dot.setVisible(show_dots)
                 self.scene().addItem(dot)
                 dots.append(dot)
             self._cp_dot_items.append(dots)
