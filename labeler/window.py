@@ -212,6 +212,7 @@ class MainWindow(QMainWindow):
         self._sam_img_path: str = ""
         self.current_img_ann = None
         self._modified = False
+        self._pre_pan_action: Optional[QAction] = None
 
         # image_id → MaskManager  (in-place modified during editing)
         self._mask_managers: Dict[int, MaskManager] = {}
@@ -287,7 +288,7 @@ class MainWindow(QMainWindow):
         self._act_draw  = QAction(self, shortcut="D", checkable=True)
         self._act_brush = QAction(self, shortcut="B", checkable=True)
         self._act_magic = QAction(self, shortcut="M", checkable=True)
-        self._act_hand  = QAction(self, shortcut="H", checkable=True)
+        self._act_hand  = QAction(self, checkable=True)
 
         self._act_draw.setIcon(_polygon_icon())
         self._act_draw.setToolTip("Draw Polygon  (D)")
@@ -414,11 +415,13 @@ class MainWindow(QMainWindow):
         splitter.addWidget(right)
         splitter.setSizes([1050, 230])
 
-        # Window-level brush size shortcuts (work regardless of focus)
+        # Window-level shortcuts (work regardless of focus)
         self._act_brush_dec = QAction(self, shortcut="[")
         self._act_brush_inc = QAction(self, shortcut="]")
+        self._act_pan_toggle = QAction(self, shortcut="H")
         self.addAction(self._act_brush_dec)
         self.addAction(self._act_brush_inc)
+        self.addAction(self._act_pan_toggle)
 
         # Status bar
         sb = QStatusBar(self)
@@ -452,6 +455,7 @@ class MainWindow(QMainWindow):
         self.canvas.brush_size_changed.connect(self._sync_slider)
         self._act_brush_dec.triggered.connect(lambda: self._adjust_size(-1))
         self._act_brush_inc.triggered.connect(lambda: self._adjust_size(+1))
+        self._act_pan_toggle.triggered.connect(self._toggle_pan)
         self._mask_slider.valueChanged.connect(self._on_mask_slider_changed)
 
         self._btn_add_cls.clicked.connect(self._add_class)
@@ -766,15 +770,29 @@ class MainWindow(QMainWindow):
             self._uncheck_all_tools()
             return
         if self._act_draw.isChecked():
+            self._pre_pan_action = self._act_draw
             self._update_active_class()
             self.canvas.set_mode(Mode.DRAW)
         elif self._act_brush.isChecked():
+            self._pre_pan_action = self._act_brush
             self._update_active_class()
             self.canvas.set_mode(Mode.BRUSH)
         elif self._act_magic.isChecked():
+            self._pre_pan_action = self._act_magic
             self._update_active_class()
             self.canvas.set_mode(Mode.MAGIC)
         self.canvas.setFocus()
+
+    def _toggle_pan(self) -> None:
+        if self._act_hand.isChecked():
+            prev = self._pre_pan_action
+            if prev is not None:
+                prev.setChecked(True)
+            else:
+                self._uncheck_all_tools()
+                self.canvas.set_mode(Mode.IDLE)
+        else:
+            self._act_hand.setChecked(True)
 
     def _uncheck_all_tools(self) -> None:
         for a in (self._act_hand, self._act_draw, self._act_brush, self._act_magic):
