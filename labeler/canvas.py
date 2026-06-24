@@ -136,6 +136,7 @@ class ImageCanvas(QGraphicsView):
         self._draft_path: Optional[QGraphicsPathItem] = None
         self._draft_line: Optional[QGraphicsLineItem] = None
         self._draft_dot: Optional[QGraphicsEllipseItem] = None
+        self._pending_polygons: Optional[List[List[List[float]]]] = None
 
         # magic wand state
         self._magic_pts: List[Tuple[float, float]] = []
@@ -265,6 +266,7 @@ class ImageCanvas(QGraphicsView):
         self._cat_colors = cat_colors
         self._edit_ann_id = -1
         self._edit_mask = None
+        self._pending_polygons = None
         self._clear_contour()
         if mgr:
             self._pending_mask = np.zeros((mgr.height, mgr.width), dtype=np.uint8)
@@ -608,6 +610,14 @@ class ImageCanvas(QGraphicsView):
             if len(pts) >= 3:
                 MaskManager.fill_polygon_on(self._edit_mask, pts)
         self._refresh_overlay_full()
+        # Preserve edited contour points as polygon — no simplification on save
+        if self._mask_manager is not None:
+            ann = self._mask_manager.get_annotation(self._edit_ann_id)
+            if ann is not None:
+                ann.original_polygons = [
+                    [[x, y] for x, y in pts]
+                    for pts in self._cp_contours if len(pts) >= 3
+                ]
         self.edit_changed.emit(self._edit_ann_id)
 
     # ── overlay helpers ───────────────────────────────────────────────────────
@@ -635,11 +645,17 @@ class ImageCanvas(QGraphicsView):
         if self._mask_manager is None or self._active_cat_id < 0:
             return
         ann_id = self._mask_manager.add_annotation(self._active_cat_id, self._pending_mask)
+        if self._pending_polygons is not None:
+            ann = self._mask_manager.get_annotation(ann_id)
+            if ann is not None:
+                ann.original_polygons = self._pending_polygons
+            self._pending_polygons = None
         self._pending_mask[:] = 0
         self._refresh_overlay_full()
         self.annotation_committed.emit(ann_id)
 
     def _discard_pending(self) -> None:
+        self._pending_polygons = None
         if self._pending_mask is not None and self._pending_mask.any():
             self._pending_mask[:] = 0
             self._refresh_overlay_full()
@@ -693,6 +709,7 @@ class ImageCanvas(QGraphicsView):
             self._cancel_draw()
             return
         pts = [(p.x(), p.y()) for p in self._draft_pts]
+        self._pending_polygons = [[[p[0], p[1]] for p in pts]]
         self._clear_draft()
         if self._mask_manager and self._overlay_item and self._pending_mask is not None:
             x1, y1, x2, y2 = MaskManager.fill_polygon_on(self._pending_mask, pts)
@@ -733,6 +750,10 @@ class ImageCanvas(QGraphicsView):
             if x2 > x1 and y2 > y1:
                 rgba = self._mask_manager.rgba_region(x1, y1, x2, y2, self._cat_colors)
                 self._overlay_item.refresh_region(rgba, x1, y1)
+            # Brush invalidates polygon precision — must extract from mask on save
+            ann = self._mask_manager.get_annotation(self._edit_ann_id)
+            if ann is not None:
+                ann.original_polygons = None
             self.edit_changed.emit(self._edit_ann_id)
         else:
             # Normal mode: write to pending mask

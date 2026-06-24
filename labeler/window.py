@@ -880,12 +880,6 @@ class MainWindow(QMainWindow):
 
     def _on_edit_changed(self, ann_id: int) -> None:
         """Called when an annotation's mask is modified by brush or contour drag."""
-        if self.current_img_ann is not None:
-            mgr = self._mask_managers.get(self.current_img_ann.image_id)
-            if mgr is not None:
-                ann = mgr.get_annotation(ann_id)
-                if ann is not None:
-                    ann.original_polygons = None  # fall back to contour extraction on save
         self._mark_modified()
 
     def _on_edit_cleared(self) -> None:
