@@ -32,27 +32,43 @@ def save_labelme(
                 cat = cat_map.get(ann.cat_id)
                 if cat is None:
                     continue
-                contours, _ = cv2.findContours(
-                    ann.mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_KCOS
-                )
-                for c in contours:
-                    if len(c) < 3:
-                        continue
-                    arc = cv2.arcLength(c, True)
-                    eps = max(1.0, 0.003 * arc)
-                    approx = cv2.approxPolyDP(c, eps, True)
-                    if len(approx) < 3:
-                        continue
-                    pts = approx.reshape(-1, 2).tolist()
-                    shapes.append({
-                        "label": cat.name,
-                        "points": [[float(x), float(y)] for x, y in pts],
-                        "group_id": None,
-                        "description": _DESCRIPTION,
-                        "shape_type": "polygon",
-                        "flags": {},
-                        "mask": None,
-                    })
+
+                if ann.original_polygons is not None:
+                    # Annotation unchanged since load — write original points as-is.
+                    for poly_pts in ann.original_polygons:
+                        if len(poly_pts) >= 3:
+                            shapes.append({
+                                "label": cat.name,
+                                "points": poly_pts,
+                                "group_id": None,
+                                "description": _DESCRIPTION,
+                                "shape_type": "polygon",
+                                "flags": {},
+                                "mask": None,
+                            })
+                else:
+                    # Annotation was created or edited here — extract from mask.
+                    contours, _ = cv2.findContours(
+                        ann.mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_KCOS
+                    )
+                    for c in contours:
+                        if len(c) < 3:
+                            continue
+                        arc = cv2.arcLength(c, True)
+                        eps = max(1.0, 0.003 * arc)
+                        approx = cv2.approxPolyDP(c, eps, True)
+                        if len(approx) < 3:
+                            continue
+                        pts = approx.reshape(-1, 2).tolist()
+                        shapes.append({
+                            "label": cat.name,
+                            "points": [[float(x), float(y)] for x, y in pts],
+                            "group_id": None,
+                            "description": _DESCRIPTION,
+                            "shape_type": "polygon",
+                            "flags": {},
+                            "mask": None,
+                        })
 
         img_basename = os.path.basename(img.file_path)
         stem = os.path.splitext(img_basename)[0]
@@ -121,10 +137,14 @@ def load_labelme(
             points = shape.get("points", [])
             if len(points) < 3:
                 continue
+            pts_float = [[float(x), float(y)] for x, y in points]
             mask = np.zeros((h, w), dtype=np.uint8)
-            MaskManager.fill_polygon_on(mask, [(float(x), float(y)) for x, y in points])
+            MaskManager.fill_polygon_on(mask, [(p[0], p[1]) for p in pts_float])
             if mask.any():
-                mgr.add_annotation(cat.id, mask)
+                ann_id = mgr.add_annotation(cat.id, mask)
+                ann = mgr.get_annotation(ann_id)
+                if ann is not None:
+                    ann.original_polygons = [pts_float]
 
         mask_managers[img_ann.image_id] = mgr
 

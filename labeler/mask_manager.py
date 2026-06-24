@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 import cv2
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 
@@ -10,6 +10,9 @@ class Annotation:
     ann_id: int
     cat_id: int
     mask: np.ndarray  # H×W uint8
+    # Original polygon points loaded from LabelMe [[x,y], ...].
+    # Preserved on save unless the mask was edited (then set to None).
+    original_polygons: Optional[List] = field(default=None, repr=False, compare=False)
 
 
 class MaskManager:

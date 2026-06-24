@@ -469,7 +469,7 @@ class MainWindow(QMainWindow):
         self.canvas.annotation_committed.connect(self._on_annotation_committed)
         self.canvas.magic_requested.connect(self._on_magic_requested)
         self.canvas.undo_record.connect(self._push_undo)
-        self.canvas.edit_changed.connect(self._mark_modified)
+        self.canvas.edit_changed.connect(self._on_edit_changed)
         self.canvas.edit_cleared.connect(self._on_edit_cleared)
         self.canvas.mode_changed.connect(self._on_mode_changed)
         self._label_list.currentRowChanged.connect(self._on_label_selected)
@@ -883,6 +883,16 @@ class MainWindow(QMainWindow):
                 self._clear_class_bold()
                 break
         self._update_label_class_combo()
+
+    def _on_edit_changed(self, ann_id: int) -> None:
+        """Called when an annotation's mask is modified by brush or contour drag."""
+        if self.current_img_ann is not None:
+            mgr = self._mask_managers.get(self.current_img_ann.image_id)
+            if mgr is not None:
+                ann = mgr.get_annotation(ann_id)
+                if ann is not None:
+                    ann.original_polygons = None  # fall back to contour extraction on save
+        self._mark_modified()
 
     def _on_edit_cleared(self) -> None:
         self._label_list.blockSignals(True)

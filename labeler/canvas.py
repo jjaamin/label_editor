@@ -89,7 +89,7 @@ class ImageCanvas(QGraphicsView):
     stroke_finished      = pyqtSignal()
     mode_changed         = pyqtSignal(str)
     brush_size_changed   = pyqtSignal(int)
-    edit_changed         = pyqtSignal()
+    edit_changed         = pyqtSignal(int)   # ann_id
     edit_cleared         = pyqtSignal()
     undo_record          = pyqtSignal(object)  # dict pushed to window undo stack
     magic_requested      = pyqtSignal(object, object)  # (points, labels) → window runs SAM
@@ -608,7 +608,7 @@ class ImageCanvas(QGraphicsView):
             if len(pts) >= 3:
                 MaskManager.fill_polygon_on(self._edit_mask, pts)
         self._refresh_overlay_full()
-        self.edit_changed.emit()
+        self.edit_changed.emit(self._edit_ann_id)
 
     # ── overlay helpers ───────────────────────────────────────────────────────
 
@@ -733,7 +733,7 @@ class ImageCanvas(QGraphicsView):
             if x2 > x1 and y2 > y1:
                 rgba = self._mask_manager.rgba_region(x1, y1, x2, y2, self._cat_colors)
                 self._overlay_item.refresh_region(rgba, x1, y1)
-            self.edit_changed.emit()
+            self.edit_changed.emit(self._edit_ann_id)
         else:
             # Normal mode: write to pending mask
             if self._pending_mask is None:
