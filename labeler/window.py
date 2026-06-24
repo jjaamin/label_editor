@@ -494,6 +494,16 @@ class MainWindow(QMainWindow):
         for f in files:
             self._img_list.addItem(f)
 
+        if files and coco_io.has_labelme_annotations(folder, files):
+            try:
+                proj, mgrs = coco_io.load_labelme(folder, files)
+                self.project = proj
+                self._mask_managers = mgrs
+                self.save_path = folder
+                self._refresh_class_list()
+            except Exception:
+                pass
+
         if files:
             self._img_list.setCurrentRow(0)
         self._update_title()
@@ -566,6 +576,22 @@ class MainWindow(QMainWindow):
             self._on_image_selected(row)
         self._lbl_status.setText(f"Loaded from: {os.path.basename(directory)}/")
 
+    def _load_json_for_image(self, filename: str, w: int, h: int) -> Optional[MaskManager]:
+        """Try to load JSON for a single image; merge categories into current project."""
+        if not self.image_dir:
+            return None
+        try:
+            proj, mgrs = coco_io.load_labelme(self.image_dir, [filename])
+        except Exception:
+            return None
+        if not mgrs:
+            return None
+        for cat in proj.categories:
+            if not any(c.name == cat.name for c in self.project.categories):
+                self.project.add_category(cat.name)
+        self._refresh_class_list()
+        return next(iter(mgrs.values()))
+
     # ── image navigation ──────────────────────────────────────────────────────
 
     def _on_image_selected(self, row: int) -> None:
@@ -584,7 +610,7 @@ class MainWindow(QMainWindow):
         # Get or create MaskManager for this image
         mgr = self._mask_managers.get(img_ann.image_id)
         if mgr is None:
-            mgr = MaskManager(w, h)
+            mgr = self._load_json_for_image(name, w, h) or MaskManager(w, h)
             self._mask_managers[img_ann.image_id] = mgr
 
         self.canvas.set_mask_manager(mgr, self._color_tuples())
