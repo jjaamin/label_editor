@@ -344,6 +344,12 @@ class ImageCanvas(QGraphicsView):
     # ── Qt events ─────────────────────────────────────────────────────────────
 
     def mousePressEvent(self, event) -> None:
+        # Space-held temporary pan: defer to view regardless of current mode
+        if (self.dragMode() == QGraphicsView.DragMode.ScrollHandDrag
+                and self._mode != Mode.PAN):
+            super().mousePressEvent(event)
+            return
+
         if self._mode == Mode.DRAW:
             if event.button() == Qt.MouseButton.LeftButton:
                 self._draw_click(self.mapToScene(event.position().toPoint()))
@@ -397,6 +403,14 @@ class ImageCanvas(QGraphicsView):
     def mouseMoveEvent(self, event) -> None:
         sp = self.mapToScene(event.position().toPoint())
 
+        # Space-held temporary pan
+        if (self.dragMode() == QGraphicsView.DragMode.ScrollHandDrag
+                and self._mode != Mode.PAN):
+            if self._brush_ring:
+                self._brush_ring.hide()
+            super().mouseMoveEvent(event)
+            return
+
         # Control-point dragging
         ci, pi = self._dragging_cp
         if ci >= 0:
@@ -433,6 +447,12 @@ class ImageCanvas(QGraphicsView):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event) -> None:
+        # Space-held temporary pan
+        if (self.dragMode() == QGraphicsView.DragMode.ScrollHandDrag
+                and self._mode != Mode.PAN):
+            super().mouseReleaseEvent(event)
+            return
+
         ci, pi = self._dragging_cp
         if ci >= 0 and event.button() == Qt.MouseButton.LeftButton:
             self._dragging_cp = (-1, -1)
@@ -499,8 +519,7 @@ class ImageCanvas(QGraphicsView):
         elif key == Qt.Key.Key_Space and not event.isAutoRepeat():
             if self._mode != Mode.PAN:
                 self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
-                if self._mode != Mode.BRUSH:
-                    self.setCursor(Qt.CursorShape.OpenHandCursor)
+                self.setCursor(Qt.CursorShape.OpenHandCursor)
         elif key == Qt.Key.Key_F:
             self.fit_view()
         super().keyPressEvent(event)
