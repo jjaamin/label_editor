@@ -65,6 +65,9 @@ def save_labelme(
                             "mask": None,
                         })
 
+        if not shapes:
+            continue  # No annotations — don't create an empty JSON file
+
         img_basename = os.path.basename(img.file_path)
         stem = os.path.splitext(img_basename)[0]
         json_path = os.path.join(image_dir, stem + ".json")
