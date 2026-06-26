@@ -316,7 +316,7 @@ class ImageCanvas(QGraphicsView):
                 p = QPen(QColor("#FFFF00"), 1.5)
                 p.setCosmetic(True)
                 b = QBrush(QColor("#FFFF00"))
-                r = 5
+                r = 3
             for dots in self._cp_dot_items:
                 for dot in dots:
                     dot.setPen(p)
@@ -571,7 +571,7 @@ class ImageCanvas(QGraphicsView):
         dot_brush = QBrush(QColor("#FFFF00"))
         drag_pen = QPen(QColor("#FFFF00"), 1, Qt.PenStyle.DashLine)
         drag_pen.setCosmetic(True)
-        CP_R = 5
+        CP_R = 3
 
         for cp_pts in contours:
             # Drag-preview polygon — hidden until a point is dragged
