@@ -311,7 +311,7 @@ class ImageCanvas(QGraphicsView):
                 p = QPen(QColor(255, 255, 0, 110), 1.0)
                 p.setCosmetic(True)
                 b = QBrush(QColor(0, 255, 255, 50))
-                r = 2
+                r = 4
             else:
                 p = QPen(QColor("#FFFF00"), 1.5)
                 p.setCosmetic(True)
@@ -592,7 +592,7 @@ class ImageCanvas(QGraphicsView):
                 act_pen = QPen(QColor(255, 255, 0, 110), 1.0)
                 act_pen.setCosmetic(True)
                 act_brush = QBrush(QColor(0, 255, 255, 50))
-                act_r = 2
+                act_r = 4
             else:
                 act_pen, act_brush, act_r = dot_pen, dot_brush, CP_R
             for x, y in cp_pts:
