@@ -305,12 +305,23 @@ class ImageCanvas(QGraphicsView):
         else:
             self.setDragMode(QGraphicsView.DragMode.NoDrag)
         self._apply_cursor()
-        # Show/hide control point dots depending on mode (hidden while brushing)
+        # Update control point dot appearance on mode change
         if self._edit_ann_id >= 0 and self._cp_dot_items:
-            show_dots = (mode != Mode.BRUSH)
+            if mode == Mode.BRUSH:
+                p = QPen(QColor(255, 255, 0, 90), 0.8)
+                p.setCosmetic(True)
+                b = QBrush(QColor(255, 255, 0, 45))
+                r = 3
+            else:
+                p = QPen(QColor("#FFFF00"), 1.5)
+                p.setCosmetic(True)
+                b = QBrush(QColor("#FFFF00"))
+                r = 5
             for dots in self._cp_dot_items:
                 for dot in dots:
-                    dot.setVisible(show_dots)
+                    dot.setPen(p)
+                    dot.setBrush(b)
+                    dot.setRect(-r, -r, r * 2, r * 2)
         self.mode_changed.emit(mode.name.lower())
 
     def set_brush_size(self, size: int) -> None:
@@ -577,15 +588,20 @@ class ImageCanvas(QGraphicsView):
 
             # Control point dots at pixel centres (cp_pts already have +0.5)
             dots: List[QGraphicsEllipseItem] = []
-            show_dots = (self._mode != Mode.BRUSH)
+            if self._mode == Mode.BRUSH:
+                act_pen = QPen(QColor(255, 255, 0, 90), 0.8)
+                act_pen.setCosmetic(True)
+                act_brush = QBrush(QColor(255, 255, 0, 45))
+                act_r = 3
+            else:
+                act_pen, act_brush, act_r = dot_pen, dot_brush, CP_R
             for x, y in cp_pts:
-                dot = QGraphicsEllipseItem(-CP_R, -CP_R, CP_R * 2, CP_R * 2)
-                dot.setPen(dot_pen)
-                dot.setBrush(dot_brush)
+                dot = QGraphicsEllipseItem(-act_r, -act_r, act_r * 2, act_r * 2)
+                dot.setPen(act_pen)
+                dot.setBrush(act_brush)
                 dot.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
                 dot.setPos(x, y)
                 dot.setZValue(35)
-                dot.setVisible(show_dots)
                 self.scene().addItem(dot)
                 dots.append(dot)
             self._cp_dot_items.append(dots)
