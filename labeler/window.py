@@ -854,7 +854,9 @@ class MainWindow(QMainWindow):
         if self.canvas.current_mode == "magic":
             self._mask_slider.setValue(self._mask_slider.value() + delta)
         else:
-            self._brush_slider.setValue(self._brush_slider.value() + delta)
+            cur = self._brush_slider.value()
+            step = 1 if cur <= 30 else (2 if cur <= 60 else 4)
+            self._brush_slider.setValue(cur + (step if delta > 0 else -step))
 
     def _on_slider_changed(self, value: int) -> None:
         self._brush_size_lbl.setText(str(value))
