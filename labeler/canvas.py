@@ -308,10 +308,10 @@ class ImageCanvas(QGraphicsView):
         # Update control point dot appearance on mode change
         if self._edit_ann_id >= 0 and self._cp_dot_items:
             if mode == Mode.BRUSH:
-                p = QPen(QColor(255, 255, 0, 90), 0.8)
+                p = QPen(QColor(255, 255, 0, 110), 1.0)
                 p.setCosmetic(True)
-                b = QBrush(QColor(255, 255, 0, 45))
-                r = 3
+                b = QBrush(QColor(0, 255, 255, 50))
+                r = 2
             else:
                 p = QPen(QColor("#FFFF00"), 1.5)
                 p.setCosmetic(True)
@@ -589,10 +589,10 @@ class ImageCanvas(QGraphicsView):
             # Control point dots at pixel centres (cp_pts already have +0.5)
             dots: List[QGraphicsEllipseItem] = []
             if self._mode == Mode.BRUSH:
-                act_pen = QPen(QColor(255, 255, 0, 90), 0.8)
+                act_pen = QPen(QColor(255, 255, 0, 110), 1.0)
                 act_pen.setCosmetic(True)
-                act_brush = QBrush(QColor(255, 255, 0, 45))
-                act_r = 3
+                act_brush = QBrush(QColor(0, 255, 255, 50))
+                act_r = 2
             else:
                 act_pen, act_brush, act_r = dot_pen, dot_brush, CP_R
             for x, y in cp_pts:
