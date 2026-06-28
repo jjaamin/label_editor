@@ -178,10 +178,10 @@ Labels 패널에서 레이블 클릭 시 편집 모드 진입:
 
 ---
 
-### 저장 형식 (LabelMe JSON)
+### 저장 형식 (COCO Dataset JSON)
 
 - 이미지당 하나의 `.json` 파일 생성
-- LabelMe와 호환되는 형식
+- COCO Dataset Format
 - 어노테이션이 없는 이미지는 JSON 파일을 생성하지 않음
 
 **좌표 정밀도:**
