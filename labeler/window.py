@@ -240,13 +240,13 @@ def _magic_wand_icon(size: int = 21) -> QIcon:
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Label Editor")
+        self.setWindowTitle("HyLabel")
         self.resize(1280, 800)
 
         self.project = Project()
         self.image_dir: str = ""
         self.save_path: Optional[str] = None
-        self._settings = QSettings("LabelEditor", "LabelEditor")
+        self._settings = QSettings("HyLabel", "HyLabel")
         self._last_dir: str = self._settings.value("lastDir", "")
         y0 = int(self._settings.value("gammaY0", 0))
         y1 = int(self._settings.value("gammaY1", 128))
@@ -1256,9 +1256,9 @@ class MainWindow(QMainWindow):
         self._update_title()
 
     def _update_title(self) -> None:
-        base = os.path.basename(self.image_dir) if self.image_dir else "Label Editor"
+        base = os.path.basename(self.image_dir) if self.image_dir else "HyLabel"
         marker = " *" if self._modified else ""
-        self.setWindowTitle(f"Label Editor — {base}{marker}")
+        self.setWindowTitle(f"HyLabel — {base}{marker}")
 
     def _confirm_discard(self) -> bool:
         if not self._modified:

@@ -1,4 +1,4 @@
-# Label Editor
+﻿# Label Editor
 
 이미지 어노테이션 도구 (LabelMe 형식 호환)
 
@@ -201,7 +201,7 @@ Labels 패널에서 레이블 클릭 시 편집 모드 진입:
 ## 파일 구조
 
 ```
-label_editor/
+HyLabel/
 ├── run_labeler.py          # 실행 진입점
 ├── download_weights.py     # EdgeSAM 모델 다운로드
 ├── requirements.txt        # 패키지 목록

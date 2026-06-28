@@ -10,7 +10,7 @@ from .models import Project, ImageAnnotation, PALETTE
 from .mask_manager import MaskManager
 
 LABELME_VERSION = "1.0.1"
-_DESCRIPTION = "label editor - jamin"
+_DESCRIPTION = "HyLabel - jamin"
 
 
 # ── Save ──────────────────────────────────────────────────────────────────────
