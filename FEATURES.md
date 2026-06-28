@@ -1,5 +1,6 @@
 # HyLabel
 이미지 어노테이션 도구 · COCO dataset 형식 호환
+DMI 영상응용계측기술팀 구자민 TL
 
 ---
 
