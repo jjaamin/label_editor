@@ -1,4 +1,4 @@
-﻿# Label Editor
+﻿# HyLabel
 
 이미지 어노테이션 도구 (COCO dataset 형식 호환)
 
@@ -35,7 +35,7 @@ pip install onnxruntime
 ## 실행
 
 ```bash
-python run_labeler.py
+python run_hylabel.py
 ```
 
 ---
@@ -202,7 +202,7 @@ Labels 패널에서 레이블 클릭 시 편집 모드 진입:
 
 ```
 HyLabel/
-├── run_labeler.py          # 실행 진입점
+├── run_hylabel.py          # 실행 진입점
 ├── download_weights.py     # EdgeSAM 모델 다운로드
 ├── requirements.txt        # 패키지 목록
 └── labeler/
