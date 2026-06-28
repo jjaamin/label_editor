@@ -1,5 +1,5 @@
 # HyLabel
-이미지 어노테이션 도구 · COCO dataset 형식 호환
+이미지 어노테이션 도구 (COCO dataset 형식 호환)
 
 ---
 
