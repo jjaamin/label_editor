@@ -1280,6 +1280,18 @@ class MainWindow(QMainWindow):
             return not self._modified  # False if save was itself cancelled
         return reply == QMessageBox.StandardButton.Discard
 
+    def keyPressEvent(self, event) -> None:
+        if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
+            self.canvas.keyPressEvent(event)
+            return
+        super().keyPressEvent(event)
+
+    def keyReleaseEvent(self, event) -> None:
+        if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
+            self.canvas.keyReleaseEvent(event)
+            return
+        super().keyReleaseEvent(event)
+
     def closeEvent(self, event) -> None:
         if self._confirm_discard():
             event.accept()
