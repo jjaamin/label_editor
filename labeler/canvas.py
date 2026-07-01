@@ -151,6 +151,8 @@ class ImageCanvas(QGraphicsView):
         self._gamma_enabled: bool = False
         self._faint_mode: bool = False
 
+        self._last_mouse_scene_pos = QPointF(0.0, 0.0)
+
     # ── faint / gamma public API ─────────────────────────────────────────────
 
     def set_faint_mode(self, faint: bool) -> None:
@@ -326,6 +328,8 @@ class ImageCanvas(QGraphicsView):
 
     def set_brush_size(self, size: int) -> None:
         self._brush_size = max(1, min(88, size))
+        if self._mode == Mode.BRUSH and self._brush_ring and self._brush_ring.isVisible():
+            self._move_brush_ring(self._last_mouse_scene_pos)
 
     def fit_view(self) -> None:
         if self._pixmap_item:
@@ -351,6 +355,10 @@ class ImageCanvas(QGraphicsView):
     @property
     def current_mode(self) -> str:
         return self._mode.name.lower()
+
+    @property
+    def is_editing(self) -> bool:
+        return self._edit_ann_id >= 0
 
     # ── Qt events ─────────────────────────────────────────────────────────────
 
@@ -414,6 +422,7 @@ class ImageCanvas(QGraphicsView):
 
     def mouseMoveEvent(self, event) -> None:
         sp = self.mapToScene(event.position().toPoint())
+        self._last_mouse_scene_pos = sp
 
         # Space-held temporary pan
         if (self.dragMode() == QGraphicsView.DragMode.ScrollHandDrag

@@ -826,6 +826,10 @@ class MainWindow(QMainWindow):
             self._update_active_class()
             self.canvas.set_mode(Mode.BRUSH)
         elif self._act_magic.isChecked():
+            if self.canvas.is_editing:
+                self.canvas.clear_edit_annotation()
+                self.canvas.set_mode(Mode.IDLE)
+                return
             self._pre_pan_action = self._act_magic
             self._update_active_class()
             self.canvas.set_mode(Mode.MAGIC)
@@ -918,10 +922,10 @@ class MainWindow(QMainWindow):
                 n = cat_counts[ann.cat_id]
                 self.canvas.set_edit_annotation(ann_id, ann.mask)
                 self._uncheck_all_tools()
-                self.canvas.set_mode(Mode.IDLE)
+                self._act_brush.setChecked(True)
                 self._lbl_mode.setText(
                     f"Editing: {cat.name if cat else '?'}  #{n}"
-                    "   (drag points / B=brush  Esc=done)"
+                    "   (drag points / B=brush  M=done)"
                 )
                 self._set_label_bold(row)
                 self._clear_class_bold()
@@ -939,6 +943,7 @@ class MainWindow(QMainWindow):
         self._label_list.blockSignals(False)
         self._clear_label_bold()
         self._update_label_class_combo()
+        self._update_class_bold(self._class_list.currentRow())
         self._on_mode_changed(self.canvas.current_mode)
 
     # ── undo ──────────────────────────────────────────────────────────────────
