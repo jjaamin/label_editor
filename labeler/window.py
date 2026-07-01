@@ -258,6 +258,7 @@ class MainWindow(QMainWindow):
         self.current_img_ann = None
         self._modified = False
         self._pre_pan_action: Optional[QAction] = None
+        self._shift_alone = False
 
         # image_id → MaskManager  (in-place modified during editing)
         self._mask_managers: Dict[int, MaskManager] = {}
@@ -901,6 +902,16 @@ class MainWindow(QMainWindow):
         self.canvas.clear_edit_annotation()
         self._clear_label_bold()
 
+    def _select_last_label(self) -> None:
+        count = self._label_list.count()
+        if count == 0:
+            return
+        last = count - 1
+        self._label_list.blockSignals(True)
+        self._label_list.setCurrentRow(last)
+        self._label_list.blockSignals(False)
+        self._on_label_selected(last)
+
     def _on_label_selected(self, row: int) -> None:
         if row < 0 or self.current_img_ann is None:
             self.canvas.clear_edit_annotation()
@@ -1284,11 +1295,21 @@ class MainWindow(QMainWindow):
         if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
             self.canvas.keyPressEvent(event)
             return
+        if not event.isAutoRepeat():
+            if event.key() == Qt.Key.Key_Shift:
+                self._shift_alone = True
+            else:
+                self._shift_alone = False
         super().keyPressEvent(event)
 
     def keyReleaseEvent(self, event) -> None:
         if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
             self.canvas.keyReleaseEvent(event)
+            return
+        if event.key() == Qt.Key.Key_Shift and not event.isAutoRepeat():
+            if self._shift_alone:
+                self._select_last_label()
+            self._shift_alone = False
             return
         super().keyReleaseEvent(event)
 
